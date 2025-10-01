@@ -811,22 +811,32 @@ export const postService = {
       // Log response for debugging with request ID for correlation
       console.log(`[${requestId}] Create post response: ${response.status} ${response.statusText}`);
       
-      // Enhanced error handling
-      if (response.status >= 400) {
+      // Handle response based on status code
+      if (response.status === 201) {
+        // Success case (201 Created)
+        console.log(`[${requestId}] Post created successfully:`, response.data);
+        
+        // Verify that we have an actual response body with an ID
+        if (!response.data || typeof response.data !== 'object' || !response.data.id) {
+          console.error(`[${requestId}] Server returned success but with empty or invalid response body`);
+          
+          // If we get a success status but with invalid data, throw an error
+          throw {
+            message: 'Server returned success but with incomplete data. The post may not have been created properly.',
+            details: response.data || {},
+            requestId
+          };
+        }
+      } else if (response.status >= 400) {
+        // Error handling for 4xx and 5xx responses
+        
         // Check for empty response data or non-object response
-        if (!response.data || 
-            (typeof response.data === 'object' && Object.keys(response.data).length === 0)) {
+        if (!response.data || (typeof response.data === 'object' && Object.keys(response.data).length === 0)) {
           console.error(`[${requestId}] Error: No details provided by server`);
           
           // Get the response content type and raw response text if available
           const contentType = response.headers?.['content-type'] || '';
           let responseText = '';
-          
-          // Create a standardized error object to throw later
-          const errorObject = { 
-            message: 'Failed to create post. Please try again.',
-            requestId 
-          };
           
           // Try to extract raw response text if available
           try {
@@ -919,7 +929,7 @@ export const postService = {
               return response.data;
             })();
             
-            // Log the safely processed response data
+            // Always log response data as an object, never undefined or a string
             console.error(`[${requestId}] Error response data:`, safeResponseData);
             
             // Special handling for Django REST Framework validation errors (status 400)
@@ -996,71 +1006,57 @@ export const postService = {
               })()
             });
             
-            // Ensure response.data is a safe object even after error
+            // Ensure response.data is always a safe object even after error
             response.data = response.data || { 
               message: 'Error processing response data',
               _error_processing: true,
               requestId
             };
+            
+            // If response.data is not an object, make it one
+            if (typeof response.data !== 'object' || response.data === null) {
+              const originalValue = response.data;
+              response.data = { 
+                message: 'Non-object response data',
+                originalValue: originalValue !== undefined ? String(originalValue) : 'undefined',
+                requestId
+              };
+            }
           }
         }
-        }
-      } else if (response.status === 201) {
-        // Success case (201 Created)
-        console.log(`[${requestId}] Post created successfully:`, response.data);
-        
-        // Verify that we have an actual response body with an ID
-        if (!response.data || typeof response.data !== 'object' || !response.data.id) {
-          console.error(`[${requestId}] Server returned success but with empty or invalid response body`);
+
+        // Now that we've processed the error response, throw a standardized error object
+        if (response.data.errors) {
+          const errorDetails = response.data.errors;
+          // Try to get a good error message from the response
+          let errorMessage = 'Failed to create post. Please check form for errors.';
           
-          // If we get a success status but with invalid data, throw an error
-          throw {
-            message: 'Server returned success but with incomplete data. The post may not have been created properly.',
-            details: response.data || {},
-            requestId
-          };
-        }
-      }
-      
-      // For error responses, throw a standardized error object
-      if (response.status >= 400) {
-        if (!response.data || Object.keys(response.data).length === 0) {
+          // If there's a detail field, use that as the main error message
+          if (errorDetails.detail && Array.isArray(errorDetails.detail) && errorDetails.detail.length > 0) {
+            errorMessage = errorDetails.detail[0];
+          } else if (errorDetails.non_field_errors && Array.isArray(errorDetails.non_field_errors) && errorDetails.non_field_errors.length > 0) {
+            // Use non_field_errors as fallback if no detail field
+            errorMessage = errorDetails.non_field_errors[0];
+          }
+          
+          // Include error_type for debugging if available
+          const errorTypeInfo = response.data.error_type ? { error_type: response.data.error_type } : {};
+          
           throw { 
-            message: 'Failed to create post. Please try again.',
-            requestId
+            message: errorMessage,
+            details: errorDetails,
+            requestId,
+            status: response.status,
+            ...errorTypeInfo
           };
         } else {
-          // Check if response has the errors structure from our updated backend
-          if (response.data.errors) {
-            const errorDetails = response.data.errors;
-            // Try to get a good error message from the response
-            let errorMessage = 'Failed to create post. Please check form for errors.';
-            
-            // If there's a detail field, use that as the main error message
-            if (errorDetails.detail && Array.isArray(errorDetails.detail) && errorDetails.detail.length > 0) {
-              errorMessage = errorDetails.detail[0];
-            } else if (errorDetails.non_field_errors && Array.isArray(errorDetails.non_field_errors) && errorDetails.non_field_errors.length > 0) {
-              // Use non_field_errors as fallback if no detail field
-              errorMessage = errorDetails.non_field_errors[0];
-            }
-            
-            // Include error_type for debugging if available
-            const errorTypeInfo = response.data.error_type ? { error_type: response.data.error_type } : {};
-            
-            throw { 
-              message: errorMessage,
-              details: errorDetails,
-              requestId,
-              ...errorTypeInfo
-            };
-          } else {
-            // For backward compatibility with older error formats
-            throw { 
-              message: response.data.detail || 'Failed to create post',
-              details: response.data,
-              requestId
-            };
-          }
+          // For backward compatibility with older error formats
+          throw { 
+            message: response.data.detail || response.data.message || 'Failed to create post',
+            details: response.data,
+            requestId,
+            status: response.status
+          };
         }
       }
       
@@ -1070,7 +1066,7 @@ export const postService = {
       return response;
     } catch (err: any) {
       // This will only catch network errors or thrown errors from above
-      console.error(`[${requestId}] Error in createPost service:`, err);
+      console.error(`[${requestId}] Error in createPost service:`, err ?? { message: 'Unknown error (undefined err)' });
       console.groupEnd(); // Close the request log group
       
       // Check if this is our own thrown error object with message and details
@@ -1092,9 +1088,9 @@ export const postService = {
       
       // Otherwise, extract useful information from the error
       const errorDetails = {
-        message: err.message || 'Unknown error',
-        code: err.code || 'UNKNOWN_ERROR',
-        name: err.name || 'Error'
+        message: err?.message || 'Unknown error',
+        code: err?.code || 'UNKNOWN_ERROR',
+        name: err?.name || 'Error'
       };
       
       // Log detailed information about FormData if present
@@ -1112,7 +1108,9 @@ export const postService = {
           }
           console.log(`[${requestId}] FormData contents for failed request:`, formDataEntries);
         } catch (logError) {
-          console.error(`[${requestId}] Error logging FormData:`, logError);
+          // Safely log error handling issues
+          const errorMsg = logError instanceof Error ? logError.message : 'Unknown error logging FormData';
+          console.error(`[${requestId}] Error logging FormData:`, { message: errorMsg });
         }
       }
       
