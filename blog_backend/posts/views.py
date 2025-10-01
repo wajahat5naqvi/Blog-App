@@ -26,7 +26,6 @@ class PostViewSet(viewsets.ModelViewSet):
     search_fields = ['title', 'content', 'tags__name', 'author__username']
     ordering_fields = ['created_at', 'updated_at', 'title']
     ordering = ['-created_at']
-    print("hello")
 
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update']:
