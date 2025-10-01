@@ -53,3 +53,16 @@ urlpatterns = [
 # Serve media files in development
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    
+    # Add a special view for media errors to provide clearer error messages
+    from django.http import HttpResponseServerError
+    from django.urls import re_path
+    
+    def media_error_handler(request, exception=None):
+        return HttpResponseServerError(
+            "Error accessing media file. The file might be corrupted or missing. "
+            "Please contact the administrator if the problem persists."
+        )
+    
+    # Add custom error handler for media file issues
+    handler500 = media_error_handler
