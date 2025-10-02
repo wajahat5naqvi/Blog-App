@@ -43,6 +43,7 @@ urlpatterns = [
     path('api/', include([
         path('', include('accounts.urls')),
         path('', include('posts.urls')),
+        path('', include('notifications.urls')),
     ])),
     
     # API Documentation

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Post, Comment, Like, Tag
+from .models import Post, Comment, Like, Tag, Bookmark
 from accounts.serializers import UserSerializer
 
 class TagSerializer(serializers.ModelSerializer):
@@ -42,15 +42,16 @@ class PostSerializer(serializers.ModelSerializer):
     tags = TagSerializer(many=True, required=False)
     likes_count = serializers.SerializerMethodField()
     is_liked = serializers.SerializerMethodField()
+    is_bookmarked = serializers.SerializerMethodField()
     
     class Meta:
         model = Post
         fields = [
             'id', 'author', 'title', 'content', 'featured_image',
             'tags', 'created_at', 'updated_at', 'slug', 'comments',
-            'likes_count', 'is_liked'
+            'likes_count', 'is_liked', 'is_bookmarked'
         ]
-        read_only_fields = ['id', 'author', 'created_at', 'updated_at', 'slug', 'comments', 'likes_count', 'is_liked']
+        read_only_fields = ['id', 'author', 'created_at', 'updated_at', 'slug', 'comments', 'likes_count', 'is_liked', 'is_bookmarked']
     
     def get_comments(self, obj):
         # Only return top-level comments (no parent)
@@ -64,6 +65,12 @@ class PostSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             return obj.likes.filter(user=request.user).exists()
+        return False
+        
+    def get_is_bookmarked(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return Bookmark.objects.filter(post=obj, user=request.user).exists()
         return False
     
     def create(self, validated_data):
@@ -103,13 +110,14 @@ class PostCreateUpdateSerializer(serializers.ModelSerializer):
     comments_count = serializers.SerializerMethodField(read_only=True)
     likes_count = serializers.SerializerMethodField(read_only=True)
     is_liked = serializers.SerializerMethodField(read_only=True)
+    is_bookmarked = serializers.SerializerMethodField(read_only=True)
     
     class Meta:
         model = Post
         fields = [
             'id', 'author', 'title', 'content', 'featured_image',
             'tags', 'created_at', 'updated_at', 'slug', 
-            'comments_count', 'likes_count', 'is_liked'
+            'comments_count', 'likes_count', 'is_liked', 'is_bookmarked'
         ]
         read_only_fields = ['id', 'author', 'created_at', 'updated_at', 'slug']
     
@@ -123,6 +131,12 @@ class PostCreateUpdateSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             return obj.likes.filter(user=request.user).exists()
+        return False
+        
+    def get_is_bookmarked(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return Bookmark.objects.filter(post=obj, user=request.user).exists()
         return False
     
     def to_representation(self, instance):
@@ -301,4 +315,11 @@ class LikeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Like
         fields = ['id', 'user', 'post', 'comment', 'created_at']
+        read_only_fields = ['id', 'user', 'created_at']
+        
+# Simple BookmarkSerializer used internally
+class BookmarkSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Bookmark
+        fields = ['id', 'user', 'post', 'created_at']
         read_only_fields = ['id', 'user', 'created_at']

@@ -2,7 +2,7 @@
 
 import axios from 'axios';
 
-const API_URL = 'http://127.0.0.1:9000/api';
+const API_URL = 'http://127.0.0.1:8000/api';
 
 /**
  * Generate user-friendly error messages based on HTTP status codes and response data
@@ -84,6 +84,19 @@ const removeLocalStorage = (key: string): void => {
  * Parse error response from Django REST Framework
  * Handles empty response bodies and various error formats
  */
+
+/**
+ * Handle API errors by logging them with consistent format
+ * @param context A description of what operation failed
+ * @param error The error that occurred
+ */
+const handleApiError = (context: string, error: any): void => {
+  const { message, details, contextInfo } = parseApiError(error);
+  console.error(`${context}:`, message, {
+    details,
+    ...contextInfo
+  });
+};
 const parseApiError = (error: any): { message: string; details: Record<string, string>; contextInfo: Record<string, any> } => {
   const result = {
     message: 'An unexpected error occurred',
@@ -623,6 +636,48 @@ export const authService = {
       throw error;
     }
   },
+};
+
+// Tag services
+export const tagService = {
+  getAllTags: async () => {
+    try {
+      return await api.get('/tags/');
+    } catch (error) {
+      handleApiError('Error fetching tags', error);
+      throw error;
+    }
+  },
+  
+  getTagById: async (id: number) => {
+    try {
+      return await api.get(`/tags/${id}/`);
+    } catch (error) {
+      handleApiError(`Error fetching tag ${id}`, error);
+      throw error;
+    }
+  }
+};
+
+// Category services
+export const categoryService = {
+  getAllCategories: async () => {
+    try {
+      return await api.get('/categories/');
+    } catch (error) {
+      handleApiError('Error fetching categories', error);
+      throw error;
+    }
+  },
+  
+  getCategoryById: async (id: number) => {
+    try {
+      return await api.get(`/categories/${id}/`);
+    } catch (error) {
+      handleApiError(`Error fetching category ${id}`, error);
+      throw error;
+    }
+  }
 };
 
 // Post services
@@ -1209,6 +1264,9 @@ export const postService = {
   },
   unlikePost: async (id: string) => {
     return api.delete(`/posts/${id}/like/`);
+  },
+  trackPostView: async (id: string) => {
+    return api.post(`/posts/${id}/view/`, {});
   },
   getComments: async (postId: string) => {
     return api.get(`/posts/${postId}/comments/`);

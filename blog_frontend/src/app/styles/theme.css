@@ -1,0 +1,145 @@
+:root {
+  /* Light theme variables */
+  --background-color: #ffffff;
+  --text-color: #333333;
+  --heading-color: #222222;
+  --border-color: #dee2e6;
+  --link-color: #0070f3;
+  --link-hover-color: #0056b3;
+  --primary-color: #0070f3;
+  --secondary-color: #6c757d;
+  --success-color: #28a745;
+  --danger-color: #dc3545;
+  --warning-color: #ffc107;
+  --info-color: #17a2b8;
+  --card-background: #ffffff;
+  --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --navbar-background: #ffffff;
+  --navbar-text: #333333;
+  --footer-background: #f8f9fa;
+  --footer-text: #6c757d;
+  --code-background: #f5f5f5;
+  --blockquote-background: #f8f9fa;
+  --blockquote-border: #dee2e6;
+  --input-background: #ffffff;
+  --input-border: #ced4da;
+  --input-text: #495057;
+  --button-hover: #f8f9fa;
+  --focus-color: #80bdff;
+  --dropdown-background: #ffffff;
+  --dropdown-border: #dee2e6;
+  --dropdown-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+  --tooltip-background: #333333;
+  --tooltip-text: #ffffff;
+  --mark-background: #fff3cd;
+  --select-background: #ffffff;
+  --loading-spinner-background: rgba(255, 255, 255, 0.8);
+}
+
+[data-theme="dark"] {
+  /* Dark theme variables */
+  --background-color: #121212;
+  --text-color: #e0e0e0;
+  --heading-color: #f8f9fa;
+  --border-color: #343a40;
+  --link-color: #90caf9;
+  --link-hover-color: #bbdefb;
+  --primary-color: #3f8cff;
+  --secondary-color: #6c757d;
+  --success-color: #2ecc40;
+  --danger-color: #ff4136;
+  --warning-color: #ffdc00;
+  --info-color: #39cccc;
+  --card-background: #1e1e1e;
+  --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --navbar-background: #1e1e1e;
+  --navbar-text: #e0e0e0;
+  --footer-background: #1a1a1a;
+  --footer-text: #adb5bd;
+  --code-background: #2d2d2d;
+  --blockquote-background: #252525;
+  --blockquote-border: #444444;
+  --input-background: #2d2d2d;
+  --input-border: #444444;
+  --input-text: #e0e0e0;
+  --button-hover: #343a40;
+  --focus-color: #3f8cff;
+  --dropdown-background: #1e1e1e;
+  --dropdown-border: #343a40;
+  --dropdown-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.5);
+  --tooltip-background: #e0e0e0;
+  --tooltip-text: #121212;
+  --mark-background: #553c14;
+  --select-background: #2d2d2d;
+  --loading-spinner-background: rgba(18, 18, 18, 0.8);
+}
+
+/* Global dark mode adjustments */
+[data-theme="dark"] body {
+  background-color: var(--background-color);
+  color: var(--text-color);
+}
+
+[data-theme="dark"] h1,
+[data-theme="dark"] h2,
+[data-theme="dark"] h3,
+[data-theme="dark"] h4,
+[data-theme="dark"] h5,
+[data-theme="dark"] h6 {
+  color: var(--heading-color);
+}
+
+[data-theme="dark"] a {
+  color: var(--link-color);
+}
+
+[data-theme="dark"] a:hover {
+  color: var(--link-hover-color);
+}
+
+[data-theme="dark"] pre,
+[data-theme="dark"] code {
+  background-color: var(--code-background);
+  color: var(--text-color);
+}
+
+[data-theme="dark"] blockquote {
+  background-color: var(--blockquote-background);
+  border-left-color: var(--blockquote-border);
+}
+
+[data-theme="dark"] input,
+[data-theme="dark"] textarea,
+[data-theme="dark"] select {
+  background-color: var(--input-background);
+  border-color: var(--input-border);
+  color: var(--input-text);
+}
+
+/* Smooth transitions for theme switch */
+body,
+a,
+button,
+input,
+textarea,
+select,
+.navbar,
+.footer,
+.card,
+.dropdown-menu,
+.modal-content,
+pre,
+code,
+blockquote {
+  transition: all 0.3s ease;
+}
+
+/* Adjust image brightness in dark mode */
+[data-theme="dark"] img:not([src*=".svg"]) {
+  filter: brightness(0.8) contrast(1.2);
+}
+
+/* Invert SVG icons that might be dark by default */
+[data-theme="dark"] img[src$=".svg"] {
+  filter: invert(1);
+}

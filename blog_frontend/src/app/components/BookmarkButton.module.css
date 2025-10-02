@@ -1,0 +1,45 @@
+.iconButton {
+  background: none;
+  border: none;
+  padding: 5px;
+  cursor: pointer;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s, transform 0.2s;
+}
+
+.iconButton:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.iconButton:active {
+  transform: scale(0.95);
+}
+
+.bookmarkedIcon {
+  color: #0d6efd;
+}
+
+.outlineButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.outlineButton:active {
+  transform: scale(0.98);
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .iconButton:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  .bookmarkedIcon {
+    color: #3f8cff;
+  }
+}

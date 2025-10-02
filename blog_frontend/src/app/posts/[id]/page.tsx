@@ -14,6 +14,8 @@ import Link from 'next/link';
 import { Post as PostType } from '../../components/PostCard';
 import FormattedDate from '../../components/FormattedDate';
 import { getImageUrl, handleImageError } from '../../utils/imageUtils';
+import SocialShareButtons from '../../components/SocialShareButtons';
+import PostSEO from '../../components/PostSEO';
 
 interface Post extends PostType {
   updated_at: string;
@@ -27,6 +29,9 @@ export default function PostDetailPage({ params }: PostDetailPageProps) {
   // Unwrap the params Promise using React.use() at the top level of the component
   const resolvedParams = use(params);
   const postId = resolvedParams.id;
+  
+  // Used for social sharing
+  const [pageUrl, setPageUrl] = useState<string>('');
   
   // State declarations
   const [post, setPost] = useState<Post | null>(null);
@@ -45,11 +50,24 @@ export default function PostDetailPage({ params }: PostDetailPageProps) {
     // Make sure postId is available before fetching
     if (!postId) return;
     
+    // Set page URL for sharing
+    if (typeof window !== 'undefined') {
+      setPageUrl(window.location.href);
+    }
+    
     const fetchPost = async () => {
       try {
         const response = await postService.getPostById(postId);
         setPost(response.data);
         setLiked(response.data.is_liked);
+        
+        // Track page view for analytics
+        try {
+          await postService.trackPostView(postId);
+        } catch (viewErr) {
+          console.error('Error tracking post view:', viewErr);
+          // Non-critical error, so we don't need to show it to the user
+        }
         
         // Fetch comments for the post
         const commentsResponse = await postService.getComments(postId);
@@ -186,8 +204,8 @@ export default function PostDetailPage({ params }: PostDetailPageProps) {
                 ))}
               </div>
               
-              {/* Like Button */}
-              <div className="d-flex align-items-center">
+              {/* Like and Share */}
+              <div className="d-flex align-items-center justify-content-between">
                 <Button
                   variant={liked ? "primary" : "outline-primary"}
                   onClick={handleLikeToggle}
@@ -196,6 +214,17 @@ export default function PostDetailPage({ params }: PostDetailPageProps) {
                   <i className={`bi ${liked ? 'bi-heart-fill' : 'bi-heart'} me-2`}></i>
                   {post.likes_count} {post.likes_count === 1 ? 'Like' : 'Likes'}
                 </Button>
+                
+                {pageUrl && (
+                  <SocialShareButtons
+                    url={pageUrl}
+                    title={post.title}
+                    description={post.content.substring(0, 100) + '...'}
+                    image={post.featured_image ? getImageUrl(post.featured_image) : undefined}
+                    variant="icons"
+                    size="md"
+                  />
+                )}
               </div>
             </Card.Body>
           </Card>

@@ -1,14 +1,15 @@
 from rest_framework import viewsets, permissions, generics, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from .models import Post, Comment, Like, Tag
+from .models import Post, Comment, Like, Tag, Bookmark
 from .serializers import (
     PostSerializer, PostCreateUpdateSerializer, CommentSerializer, 
-    LikeSerializer, TagSerializer
+    LikeSerializer, TagSerializer, BookmarkSerializer
 )
 from .permissions import IsAuthorOrReadOnly
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
+from django.utils import timezone
 
 class TagViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for listing and retrieving tags"""
@@ -103,6 +104,30 @@ class PostViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = Post.objects.all()
         
+        # Only show published posts to anonymous users or non-authors
+        # Show draft posts only to their authors
+        if not self.request.user.is_authenticated:
+            # Anonymous users only see published posts that aren't drafts and have passed publish_at date
+            queryset = queryset.filter(
+                published=True, 
+                is_draft=False
+            ).filter(
+                # Either publish_at is null (publish immediately) OR publish_at has passed
+                Q(publish_at__isnull=True) | Q(publish_at__lte=timezone.now())
+            )
+        else:
+            # For authenticated users, either:
+            # 1. Show their own posts (including drafts)
+            # 2. For other users' posts, only show published non-drafts
+            queryset = queryset.filter(
+                Q(author=self.request.user) |
+                (
+                    Q(published=True) & 
+                    Q(is_draft=False) & 
+                    (Q(publish_at__isnull=True) | Q(publish_at__lte=timezone.now()))
+                )
+            )
+        
         # Filter by tag if provided
         tag = self.request.query_params.get('tag')
         if tag:
@@ -112,6 +137,23 @@ class PostViewSet(viewsets.ModelViewSet):
         author = self.request.query_params.get('author')
         if author:
             queryset = queryset.filter(author__username=author)
+            
+        # Filter by drafts (only for the requesting user)
+        drafts = self.request.query_params.get('drafts')
+        if drafts and self.request.user.is_authenticated:
+            if drafts.lower() == 'true':
+                queryset = queryset.filter(author=self.request.user, is_draft=True)
+            elif drafts.lower() == 'false':
+                queryset = queryset.filter(Q(is_draft=False) | ~Q(author=self.request.user))
+        
+        # Filter by scheduled posts (only for the requesting user)
+        scheduled = self.request.query_params.get('scheduled')
+        if scheduled and self.request.user.is_authenticated:
+            if scheduled.lower() == 'true':
+                queryset = queryset.filter(
+                    author=self.request.user, 
+                    publish_at__gt=timezone.now()
+                )
             
         return queryset
     
@@ -198,6 +240,29 @@ class PostViewSet(viewsets.ModelViewSet):
         serializer = CommentSerializer(comments, many=True, context={'request': request})
         return Response(serializer.data)
     
+    @action(detail=False, methods=['get'])
+    def bookmarked(self, request):
+        """Get all posts bookmarked by the current user"""
+        if not request.user.is_authenticated:
+            return Response(
+                {"errors": {"detail": ["Authentication required."]}},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+            
+        # Get posts that the user has bookmarked
+        bookmarked_posts = Post.objects.filter(bookmarks__user=request.user)
+        
+        # Apply filters from get_queryset
+        queryset = self.filter_queryset(bookmarked_posts)
+        page = self.paginate_queryset(queryset)
+        
+        if page is not None:
+            serializer = self.get_serializer(page, many=True, context={'request': request})
+            return self.get_paginated_response(serializer.data)
+            
+        serializer = self.get_serializer(queryset, many=True, context={'request': request})
+        return Response(serializer.data)
+    
     @action(detail=True, methods=['post'])
     def add_comment(self, request, pk=None):
         post = self.get_object()
@@ -248,6 +313,50 @@ class PostViewSet(viewsets.ModelViewSet):
                 {
                     "errors": {
                         "detail": ["An error occurred processing the like operation."],
+                        "non_field_errors": ["Server encountered an error while processing your request."]
+                    },
+                    "error_type": str(type(e).__name__),
+                    "error_message": str(e)
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+    @action(detail=True, methods=['post', 'delete'])
+    def bookmark(self, request, pk=None):
+        try:
+            post = self.get_object()
+            
+            if request.method == 'POST':
+                # Add bookmark
+                bookmark, created = Bookmark.objects.get_or_create(
+                    user=request.user,
+                    post=post
+                )
+                if created:
+                    return Response({'status': 'post bookmarked'}, status=status.HTTP_201_CREATED)
+                return Response({'status': 'already bookmarked'}, status=status.HTTP_200_OK)
+                
+            elif request.method == 'DELETE':
+                # Remove bookmark
+                bookmark = Bookmark.objects.filter(user=request.user, post=post)
+                if bookmark.exists():
+                    bookmark.delete()
+                    return Response({'status': 'bookmark removed'}, status=status.HTTP_204_NO_CONTENT)
+                return Response({'status': 'not bookmarked'}, status=status.HTTP_404_NOT_FOUND)
+                
+        except Exception as e:
+            # Log the exception
+            import logging
+            import traceback
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error in post bookmark/unbookmark: {str(e)}")
+            logger.error(traceback.format_exc())
+            
+            # Return structured error response
+            return Response(
+                {
+                    "errors": {
+                        "detail": ["An error occurred processing the bookmark operation."],
                         "non_field_errors": ["Server encountered an error while processing your request."]
                     },
                     "error_type": str(type(e).__name__),

@@ -1,0 +1,114 @@
+/* 
+ * This file contains custom styles for the React Quill editor
+ * It replicates the essential styles from react-quill/dist/quill.snow.css
+ */
+
+/* Basic editor styles */
+.quill {
+  display: flex;
+  flex-direction: column;
+}
+
+.ql-container {
+  box-sizing: border-box;
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  height: 100%;
+  margin: 0px;
+  position: relative;
+}
+
+.ql-editor {
+  box-sizing: border-box;
+  line-height: 1.42;
+  height: 100%;
+  outline: none;
+  overflow-y: auto;
+  padding: 12px 15px;
+  tab-size: 4;
+  text-align: left;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.ql-editor p,
+.ql-editor ol,
+.ql-editor ul,
+.ql-editor pre,
+.ql-editor blockquote,
+.ql-editor h1,
+.ql-editor h2,
+.ql-editor h3,
+.ql-editor h4,
+.ql-editor h5,
+.ql-editor h6 {
+  margin: 0;
+  padding: 0;
+  counter-reset: list-1 list-2 list-3 list-4 list-5 list-6 list-7 list-8 list-9;
+}
+
+.ql-editor ol,
+.ql-editor ul {
+  padding-left: 1.5em;
+}
+
+.ql-editor blockquote {
+  border-left: 4px solid #ccc;
+  margin-bottom: 5px;
+  margin-top: 5px;
+  padding-left: 16px;
+}
+
+/* Toolbar styles */
+.ql-toolbar {
+  box-sizing: border-box;
+  border-bottom: 1px solid #ccc;
+  padding: 8px;
+}
+
+.ql-toolbar.ql-snow {
+  border: 1px solid #ccc;
+  box-sizing: border-box;
+  font-family: 'Helvetica Neue', 'Helvetica', 'Arial', sans-serif;
+  padding: 8px;
+}
+
+.ql-toolbar button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: inline-block;
+  float: left;
+  height: 24px;
+  padding: 3px 5px;
+  width: 28px;
+}
+
+.ql-snow .ql-formats {
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 15px;
+}
+
+/* Container styles for snow theme */
+.ql-container.ql-snow {
+  border: 1px solid #ccc;
+  border-top: 0px;
+}
+
+/* Rich text editor container custom styles */
+.rich-text-editor-container {
+  margin-bottom: 60px;
+}
+
+.rich-text-editor {
+  height: 300px;
+  margin-bottom: 20px;
+}
+
+/* Hide in SSR */
+@media (max-width: 0px) {
+  .ql-container, .ql-toolbar {
+    display: none;
+  }
+}

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Container, Navbar, Nav, Button } from 'react-bootstrap';
 import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'next/navigation';
+import DarkModeToggle from './DarkModeToggle';
 
 const Header = () => {
   // Add client-side only rendering to prevent hydration mismatches
@@ -56,12 +57,16 @@ const Header = () => {
                 <span className="navbar-text me-3">
                   Welcome, {user?.username}
                 </span>
-                <Button variant="outline-light" onClick={handleLogout}>Logout</Button>
+                <Button variant="outline-light" onClick={handleLogout} className="me-2">Logout</Button>
+                <DarkModeToggle size="sm" />
               </>
             ) : (
               <>
                 <Nav.Link as={Link} href="/auth/login">Login</Nav.Link>
                 <Nav.Link as={Link} href="/auth/register">Register</Nav.Link>
+                <div className="ms-2">
+                  <DarkModeToggle size="sm" />
+                </div>
               </>
             )}
           </Nav>
