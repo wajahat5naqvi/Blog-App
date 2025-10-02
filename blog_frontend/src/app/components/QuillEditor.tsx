@@ -58,10 +58,3 @@ const QuillEditor = forwardRef<ReactQuill, QuillEditorProps>(
 QuillEditor.displayName = 'QuillEditor';
 
 export default QuillEditor;
-    );
-  }
-);
-
-QuillEditor.displayName = 'QuillEditor';
-
-export default QuillEditor;

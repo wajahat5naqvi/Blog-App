@@ -4,30 +4,11 @@ import axios from 'axios';
 
 const API_URL = 'http://127.0.0.1:8000/api';
 
-// Safe functions to access localStorage (only on client)
-const getLocalStorage = (key: string): string | null => {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem(key);
-  }
-  return null;
-};
-
-const setLocalStorage = (key: string, value: string): void => {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem(key, value);
-  }
-};
-
-const removeLocalStorage = (key: string): void => {
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem(key);
-  }
-};
-
 // Get auth token from localStorage
-const getAuthToken = (): string | null => {
+const getAuthToken = () => {
   if (typeof window !== 'undefined') {
-    return localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    return user?.token;
   }
   return null;
 };
@@ -50,8 +31,6 @@ api.interceptors.request.use(
       config.headers = config.headers || {};
       config.headers['Authorization'] = `Bearer ${token}`;
     }
-    console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
-    console.log('Request headers: ', config.headers);
     return config;
   },
   (error) => {
@@ -63,25 +42,19 @@ api.interceptors.request.use(
 // Response interceptor
 api.interceptors.response.use(
   (response) => {
-    console.log(`API Success [${response.config.method?.toUpperCase()}] ${response.config.url}: ${response.status}`);
     return response;
   },
   (error) => {
     if (error.response) {
-      console.error(`API Error [${error.config?.method?.toUpperCase()}] ${error.config?.url}: ${error.response.status}`, error.response.data);
-      
       // Handle 401 Unauthorized errors
       if (error.response.status === 401) {
         if (!error.config.url?.includes('token')) {
-          console.log('401 detected: Redirecting to login');
           if (typeof window !== 'undefined') {
             localStorage.removeItem('user');
             window.location.href = '/login';
           }
         }
       }
-    } else {
-      console.error('API Error:', error.message);
     }
     return Promise.reject(error);
   }
@@ -102,24 +75,6 @@ export const authService = {
   }
 };
 
-// Tag services
-export const tagService = {
-  getAllTags: async () => {
-    return api.get('/tags/');
-  }
-};
-
-// Category services
-export const categoryService = {
-  getAllCategories: async () => {
-    return api.get('/categories/');
-  },
-  
-  getCategoryById: async (id: number) => {
-    return api.get(`/categories/${id}/`);
-  }
-};
-
 // Post services
 export const postService = {
   getAllPosts: async () => {
@@ -133,7 +88,7 @@ export const postService = {
   updatePost: async (id: string, postData: FormData) => {
     const token = getAuthToken();
     if (!token) {
-      return Promise.reject(new Error('Authentication required. Please log in again.'));
+      return Promise.reject(new Error('Authentication required'));
     }
     
     return axios({
@@ -150,7 +105,7 @@ export const postService = {
   createPost: async (postData: FormData) => {
     const token = getAuthToken();
     if (!token) {
-      return Promise.reject(new Error('Authentication required. Please log in again.'));
+      return Promise.reject(new Error('Authentication required'));
     }
     
     return axios({
@@ -193,53 +148,33 @@ export const postService = {
   }
 };
 
-// User services
-export const userService = {
-  getUserById: async (id: string) => {
-    return api.get(`/users/${id}/`);
-  },
-  
-  getAllUsers: async () => {
-    return api.get('/users/');
+// Tag services
+export const tagService = {
+  getAllTags: async () => {
+    return api.get('/tags/');
   }
 };
 
-// Profile services
-export const profileService = {
-  getProfile: async () => {
+// Category services
+export const categoryService = {
+  getAllCategories: async () => {
+    return api.get('/categories/');
+  }
+};
+
+// User services
+export const userService = {
+  getUserProfile: async () => {
     return api.get('/profile/');
   },
   
-  updateProfile: async (profileData: FormData) => {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        status: 401,
-        data: { detail: 'Authentication required. Please log in again.' },
-        headers: {},
-        config: {},
-        statusText: 'Unauthorized'
-      };
-    }
-    
-    return axios({
-      method: 'put',
-      url: `${API_URL}/profile/`,
-      data: profileData,
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-      timeout: 30000,
-    });
-  },
-  
-  changePassword: async (oldPassword: string, newPassword: string) => {
-    return api.post('/password/change/', { old_password: oldPassword, new_password: newPassword });
+  updateProfile: async (profileData: any) => {
+    return api.put('/profile/', profileData);
   },
   
   getUserPosts: async (username: string) => {
     return api.get(`/posts/?author=${username}`);
-  },
+  }
 };
 
 export default api;

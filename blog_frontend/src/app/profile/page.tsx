@@ -47,14 +47,29 @@ export default function ProfilePage() {
       try {
         const response = await profileService.getProfile();
         const profileData = response.data;
-        setProfile(profileData);
+        
+        console.log("Profile data from API:", profileData);
+        
+        // Create a compatible profile object based on what's available in the response
+        const adaptedProfile: Profile = {
+          user: {
+            id: user?.id || 0,
+            username: profileData?.username || user?.username || '',
+            email: profileData?.email || user?.email || '',
+          },
+          bio: profileData?.bio || '',
+          profile_image: profileData?.profile_picture || null,
+        };
+        
+        setProfile(adaptedProfile);
         
         // Initialize form values
-        setUsername(profileData.user.username);
-        setEmail(profileData.user.email);
-        setBio(profileData.bio || '');
-        if (profileData.profile_image) {
-          setImagePreview(profileData.profile_image);
+        setUsername(adaptedProfile.user.username);
+        setEmail(adaptedProfile.user.email);
+        setBio(adaptedProfile.bio || '');
+        
+        if (adaptedProfile.profile_image) {
+          setImagePreview(adaptedProfile.profile_image);
         }
       } catch (err) {
         console.error('Error fetching profile:', err);
@@ -89,16 +104,31 @@ export default function ProfilePage() {
     
     try {
       const formData = new FormData();
-      formData.append('username', username);
+      // Using field names that match the backend serializer
       formData.append('email', email);
       formData.append('bio', bio);
       
       if (profileImage) {
-        formData.append('profile_image', profileImage);
+        // Make sure we use the correct field name from the serializer
+        formData.append('profile_picture', profileImage);
       }
       
       const response = await profileService.updateProfile(formData);
-      setProfile(response.data);
+      console.log("Profile update response:", response.data);
+      
+      // Update our adapted profile with the new data
+      const updatedProfileData = response.data;
+      const adaptedProfile: Profile = {
+        user: {
+          id: user?.id || 0,
+          username: updatedProfileData?.username || username,
+          email: updatedProfileData?.email || email,
+        },
+        bio: updatedProfileData?.bio || bio,
+        profile_image: updatedProfileData?.profile_picture || null,
+      };
+      
+      setProfile(adaptedProfile);
       setUpdateSuccess(true);
     } catch (err: any) {
       console.error('Error updating profile:', err);
@@ -145,7 +175,7 @@ export default function ProfilePage() {
                         {imagePreview ? (
                           <Image 
                             src={imagePreview.startsWith('data:') ? imagePreview : getImageUrl(imagePreview) || '/default-avatar.jpg'} 
-                            alt={username}
+                            alt={username || 'Profile'}
                             fill
                             className="rounded-circle"
                             style={{ objectFit: 'cover' }}
@@ -156,11 +186,11 @@ export default function ProfilePage() {
                             className="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center"
                             style={{ width: '150px', height: '150px', fontSize: '4rem' }}
                           >
-                            {username.charAt(0).toUpperCase()}
+                            {username && username.length > 0 ? username.charAt(0).toUpperCase() : 'U'}
                           </div>
                         )}
                       </div>
-                      <h4 className="mt-3">{profile.user.username}</h4>
+                      <h4 className="mt-3">{profile.user && profile.user.username ? profile.user.username : 'User'}</h4>
                     </div>
                     
                     <Nav variant="pills" className="flex-column">

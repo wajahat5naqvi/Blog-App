@@ -4,30 +4,11 @@ import axios from 'axios';
 
 const API_URL = 'http://127.0.0.1:8000/api';
 
-// Safe functions to access localStorage (only on client)
-const getLocalStorage = (key: string): string | null => {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem(key);
-  }
-  return null;
-};
-
-const setLocalStorage = (key: string, value: string): void => {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem(key, value);
-  }
-};
-
-const removeLocalStorage = (key: string): void => {
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem(key);
-  }
-};
-
 // Get auth token from localStorage
-const getAuthToken = (): string | null => {
+const getAuthToken = () => {
   if (typeof window !== 'undefined') {
-    return localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    return user?.token;
   }
   return null;
 };
@@ -133,7 +114,13 @@ export const postService = {
   updatePost: async (id: string, postData: FormData) => {
     const token = getAuthToken();
     if (!token) {
-      return Promise.reject(new Error('Authentication required. Please log in again.'));
+      return {
+        status: 401,
+        data: { detail: 'Authentication required. Please log in again.' },
+        headers: {},
+        config: {},
+        statusText: 'Unauthorized'
+      };
     }
     
     return axios({
@@ -150,7 +137,13 @@ export const postService = {
   createPost: async (postData: FormData) => {
     const token = getAuthToken();
     if (!token) {
-      return Promise.reject(new Error('Authentication required. Please log in again.'));
+      return {
+        status: 401,
+        data: { detail: 'Authentication required. Please log in again.' },
+        headers: {},
+        config: {},
+        statusText: 'Unauthorized'
+      };
     }
     
     return axios({

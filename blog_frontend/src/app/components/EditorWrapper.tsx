@@ -1,4 +1,4 @@
-import React, { useRef, forwardRef, useImperativeHandle } from 'react';
+import React, { useRef, forwardRef, useImperativeHandle, useEffect, useState } from 'react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 
@@ -17,6 +17,7 @@ interface QuillEditorProps {
 
 /**
  * QuillEditor component - A wrapper around ReactQuill that avoids React 18 findDOMNode deprecation issues
+ * This component uses a patched approach that doesn't rely on findDOMNode
  */
 const QuillEditor = forwardRef<ReactQuill, QuillEditorProps>(
   ({ value, onChange, theme = 'snow', modules, formats, placeholder, readOnly, className, style }, ref) => {
@@ -24,6 +25,24 @@ const QuillEditor = forwardRef<ReactQuill, QuillEditorProps>(
     const wrapperRef = useRef<HTMLDivElement>(null);
     // Create a ref for the ReactQuill instance
     const quillRef = useRef<ReactQuill>(null);
+    // State to control mounting of the editor (for SSR safety)
+    const [isMounted, setIsMounted] = useState(false);
+    
+    // Effect to handle client-side mounting
+    useEffect(() => {
+      setIsMounted(true);
+      
+      // Apply a patch to ReactQuill prototype to avoid findDOMNode usage
+      const ReactQuillPrototype = ReactQuill.prototype as any;
+      if (ReactQuillPrototype && ReactQuillPrototype.getEditingArea && !ReactQuillPrototype._patched) {
+        const originalGetEditingArea = ReactQuillPrototype.getEditingArea;
+        ReactQuillPrototype.getEditingArea = function() {
+          // Use the ref's current DOM node instead of findDOMNode
+          return this.editingArea || null;
+        };
+        ReactQuillPrototype._patched = true;
+      }
+    }, []);
     
     // Forward the ref to parent components if needed
     useImperativeHandle(ref, () => quillRef.current as ReactQuill);
@@ -36,8 +55,8 @@ const QuillEditor = forwardRef<ReactQuill, QuillEditorProps>(
       }
     };
 
-    // Using a modern approach to conditionally render based on client-side
-    if (typeof window === 'undefined') {
+    // If not mounted yet (server-side rendering)
+    if (!isMounted || typeof window === 'undefined') {
       return <div ref={wrapperRef} className={className || "quill-editor-loading"}>Loading editor...</div>;
     }
 

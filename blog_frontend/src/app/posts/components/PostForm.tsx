@@ -3,7 +3,7 @@
 import { useState, FormEvent, ChangeEvent } from 'react';
 import { Container, Form, Button, Alert } from 'react-bootstrap';
 import { useRouter } from 'next/navigation';
-import { postService } from '../../services';
+import { postService } from '../../services/api';
 import { safeConsoleError } from '../../utils/errorHelpers';
 
 interface PostFormData {
@@ -16,9 +16,11 @@ interface PostFormData {
 interface PostFormProps {
   initialData?: PostFormData;
   isEditing?: boolean;
+  postId?: string;
+  onUpdateSuccess?: () => void;
 }
 
-export default function PostForm({ initialData, isEditing = false }: PostFormProps) {
+export default function PostForm({ initialData, isEditing = false, postId, onUpdateSuccess }: PostFormProps) {
   // Form state
   const [title, setTitle] = useState(initialData?.title || '');
   const [content, setContent] = useState(initialData?.content || '');
@@ -59,32 +61,32 @@ export default function PostForm({ initialData, isEditing = false }: PostFormPro
   };
   
   // Handle form submission
-  const handleSubmit = async (e: FormEvent) => {
+    const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError(null);
     setSuccess(null);
     
-    // Basic validation
+    // Validate form
     if (!title.trim()) {
       setError('Title is required');
-      setLoading(false);
       return;
     }
     
     if (!content.trim()) {
       setError('Content is required');
-      setLoading(false);
       return;
     }
     
+    // Begin submission
+    setLoading(true);
+    
     try {
-      // Create FormData for submission (supports file uploads)
+      // Prepare form data
       const formData = new FormData();
       formData.append('title', title.trim());
       formData.append('content', content.trim());
       
-      // Add tags if available
+      // Process tags
       const validTags = processTagsInput(tags);
       validTags.forEach(tag => {
         formData.append('tags', tag);
@@ -95,33 +97,51 @@ export default function PostForm({ initialData, isEditing = false }: PostFormPro
         formData.append('featured_image', featuredImage);
       }
       
-      // Call API to create the post
-      const response = await postService.createPost(formData);
+      let response;
       
-      // Handle successful creation
-      if (response.status === 201) {
-        setSuccess('Post created successfully!');
+      if (isEditing && postId) {
+        // Call API to update the post
+        response = await postService.updatePost(postId, formData);
         
-        // Reset form
-        if (!isEditing) {
+        // Handle successful update
+        if (response.status === 200) {
+          setSuccess('Post updated successfully!');
+          
+          // Call the callback if provided
+          if (onUpdateSuccess) {
+            onUpdateSuccess();
+          }
+        } else {
+          // Handle unexpected success case
+          setError(`Unexpected response: ${response.status} ${response.statusText}`);
+        }
+      } else {
+        // Call API to create the post
+        response = await postService.createPost(formData);
+        
+        // Handle successful creation
+        if (response.status === 201) {
+          setSuccess('Post created successfully!');
+          
+          // Reset form
           setTitle('');
           setContent('');
           setTags('');
           setFeaturedImage(null);
           setImagePreview(null);
+          
+          // Redirect to the posts page
+          router.push('/posts');
+        } else {
+          // Handle non-201 status (unexpected success case)
+          setError(`Unexpected response: ${response.status} ${response.statusText}`);
         }
-        
-        // Redirect to the posts page
-        router.push('/posts');
-      } else {
-        // Handle non-201 status (unexpected success case)
-        setError(`Unexpected response: ${response.status} ${response.statusText}`);
       }
     } catch (err: any) {
-      safeConsoleError('Error creating post:', err);
+      safeConsoleError('Error ' + (isEditing ? 'updating' : 'creating') + ' post:', err);
       
       // Extract meaningful error message
-      let errorMessage = 'Failed to create post. Please try again.';
+      let errorMessage = `Failed to ${isEditing ? 'update' : 'create'} post. Please try again.`;
       
       if (err.response?.data) {
         if (typeof err.response.data === 'string') {
