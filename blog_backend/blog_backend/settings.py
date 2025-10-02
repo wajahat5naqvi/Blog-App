@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-$(i-8g)wh2(6*6r1+d*b!_3%uxikf9b*1xgg_*$m$53f=8im*a
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["127.0.0.1"]
 
 
 # Application definition
@@ -50,9 +50,9 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',  # CORS middleware - must come before CommonMiddleware
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',  # CORS middleware - must come before CommonMiddleware
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -194,11 +194,10 @@ CORS_ALLOW_ALL_ORIGINS = True  # Only for development, set to False in productio
 CORS_ALLOW_CREDENTIALS = True
 
 # For production, specify allowed origins:
-# CORS_ALLOWED_ORIGINS = [
-#     'http://localhost:3000',
-#     'http://127.0.0.1:3000',
-#     'https://yourdomain.com',
-# ]
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
 
 # Allowed HTTP methods for CORS
 CORS_ALLOW_METHODS = [

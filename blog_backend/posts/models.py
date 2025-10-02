@@ -10,9 +10,9 @@ class Tag(models.Model):
         return self.name
 
 class Post(models.Model):
-    """Blog post model"""
+    """Blog post model with automatic unique slug generation"""
     author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='posts')
-    title = models.CharField(max_length=255)
+    title = models.CharField(max_length=200)
     content = models.TextField()
     featured_image = models.ImageField(upload_to='post_images/', blank=True, null=True)
     tags = models.ManyToManyField(Tag, related_name='posts', blank=True)
@@ -24,8 +24,25 @@ class Post(models.Model):
         ordering = ['-created_at']
     
     def save(self, *args, **kwargs):
+        """
+        Override the save method to generate a unique slug based on the title.
+        If a slug with the same name exists, append a number to make it unique.
+        """
         if not self.slug:
-            self.slug = slugify(self.title)
+            # Generate the initial slug from title
+            base_slug = slugify(self.title)
+            self.slug = base_slug
+            
+            # Check if this slug already exists and make it unique if needed
+            counter = 1
+            
+            # Keep checking until we find a unique slug
+            while Post.objects.filter(slug=self.slug).exists():
+                # Create a new slug with a counter appended
+                self.slug = f"{base_slug}-{counter}"
+                counter += 1
+        
+        # Call the original save method
         super().save(*args, **kwargs)
     
     def __str__(self):

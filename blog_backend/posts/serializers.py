@@ -93,12 +93,52 @@ class PostSerializer(serializers.ModelSerializer):
         
         return super().update(instance, validated_data)
 
-class PostCreateUpdateSerializer(PostSerializer):
+class PostCreateUpdateSerializer(serializers.ModelSerializer):
     """Serializer for creating and updating posts with simple tag handling"""
     tags = serializers.ListField(
         child=serializers.CharField(max_length=50),
-        required=False
+        required=False,
+        write_only=True
     )
+    comments_count = serializers.SerializerMethodField(read_only=True)
+    likes_count = serializers.SerializerMethodField(read_only=True)
+    is_liked = serializers.SerializerMethodField(read_only=True)
+    
+    class Meta:
+        model = Post
+        fields = [
+            'id', 'author', 'title', 'content', 'featured_image',
+            'tags', 'created_at', 'updated_at', 'slug', 
+            'comments_count', 'likes_count', 'is_liked'
+        ]
+        read_only_fields = ['id', 'author', 'created_at', 'updated_at', 'slug']
+    
+    def get_comments_count(self, obj):
+        return obj.comments.count()
+        
+    def get_likes_count(self, obj):
+        return obj.likes.count()
+        
+    def get_is_liked(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return obj.likes.filter(user=request.user).exists()
+        return False
+    
+    def to_representation(self, instance):
+        """
+        Override to represent tags as a list of objects with id and name
+        """
+        # First get the standard representation
+        ret = super().to_representation(instance)
+        
+        # Replace tags with proper objects including both id and name
+        if hasattr(instance, 'tags') and instance.tags.exists():
+            ret['tags'] = [{'id': tag.id, 'name': tag.name} for tag in instance.tags.all()]
+        else:
+            ret['tags'] = []
+            
+        return ret
     
     def validate_featured_image(self, value):
         """
@@ -129,20 +169,38 @@ class PostCreateUpdateSerializer(PostSerializer):
     def create(self, validated_data):
         try:
             # Pop tags data if present
-            tags = validated_data.pop('tags', [])
+            tags_data = validated_data.pop('tags', [])
             
             # Create post with the user from the request context
             post = Post.objects.create(author=self.context['request'].user, **validated_data)
             
-            # Add tags to post - making this process more robust
-            if tags:
-                for tag_name in tags:
-                    if tag_name and isinstance(tag_name, str):
-                        # Strip whitespace and ensure tag is not empty
-                        tag_name = tag_name.strip()
+            # Process tags - handle both tag names and tag IDs
+            if tags_data:
+                # Clear existing tags first
+                post.tags.clear()
+                
+                for tag_item in tags_data:
+                    # Try to handle both string tags and objects
+                    if isinstance(tag_item, str):
+                        # This is a tag name - create or get the tag
+                        tag_name = tag_item.strip()
+                        if tag_name:  # Only process non-empty tags
+                            tag_obj, _ = Tag.objects.get_or_create(name=tag_name)
+                            post.tags.add(tag_obj)
+                    elif isinstance(tag_item, dict) and 'name' in tag_item:
+                        # This is a dictionary with a name field
+                        tag_name = tag_item['name'].strip()
                         if tag_name:
-                            tag, _ = Tag.objects.get_or_create(name=tag_name)
-                            post.tags.add(tag)
+                            tag_obj, _ = Tag.objects.get_or_create(name=tag_name)
+                            post.tags.add(tag_obj)
+                    elif isinstance(tag_item, int) or (isinstance(tag_item, str) and tag_item.isdigit()):
+                        # This is a tag ID
+                        try:
+                            tag_id = int(tag_item)
+                            if Tag.objects.filter(id=tag_id).exists():
+                                post.tags.add(tag_id)
+                        except (ValueError, TypeError):
+                            pass
             
             return post
             
@@ -175,14 +233,43 @@ class PostCreateUpdateSerializer(PostSerializer):
     
     def update(self, instance, validated_data):
         try:
+            # Handle tags separately
             if 'tags' in validated_data:
-                tags = validated_data.pop('tags')
+                tags_data = validated_data.pop('tags')
+                
+                # Clear existing tags first
                 instance.tags.clear()
-                for tag_name in tags:
-                    tag, _ = Tag.objects.get_or_create(name=tag_name)
-                    instance.tags.add(tag)
-                    
-            return super().update(instance, validated_data)
+                
+                # Process tags - handle both tag names and tag IDs
+                for tag_item in tags_data:
+                    # Try to handle both string tags and objects
+                    if isinstance(tag_item, str):
+                        # This is a tag name - create or get the tag
+                        tag_name = tag_item.strip()
+                        if tag_name:  # Only process non-empty tags
+                            tag_obj, _ = Tag.objects.get_or_create(name=tag_name)
+                            instance.tags.add(tag_obj)
+                    elif isinstance(tag_item, dict) and 'name' in tag_item:
+                        # This is a dictionary with a name field
+                        tag_name = tag_item['name'].strip()
+                        if tag_name:
+                            tag_obj, _ = Tag.objects.get_or_create(name=tag_name)
+                            instance.tags.add(tag_obj)
+                    elif isinstance(tag_item, int) or (isinstance(tag_item, str) and tag_item.isdigit()):
+                        # This is a tag ID
+                        try:
+                            tag_id = int(tag_item)
+                            if Tag.objects.filter(id=tag_id).exists():
+                                instance.tags.add(tag_id)
+                        except (ValueError, TypeError):
+                            pass
+            
+            # Update the instance fields
+            for attr, value in validated_data.items():
+                setattr(instance, attr, value)
+            instance.save()
+            
+            return instance
         except Exception as e:
             # Log the actual error for debugging
             import logging
